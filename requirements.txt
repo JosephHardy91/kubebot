@@ -1,0 +1,9 @@
+langchain
+langchain-core
+langchain-openai
+langchain-community
+dagster
+dagster-webserver
+pydantic
+psycopg2-binary
+fastapi
