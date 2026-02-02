@@ -1,1 +1,1 @@
-from .chat import run_pipeline
+from .chat import run_chat_only_pipeline, run_agent_pipeline
