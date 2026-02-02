@@ -15,5 +15,5 @@ This is the user query:
 def make_agent_prompt(query: UserQuery, tools: list)->str:
     tool_strings = ''
     for tool in tools:
-        tool_strings += f'{tool.name}: {tool.description}'
+        tool_strings += f'{tool.name}: {tool.description}\n'
     return AGENTIC_PROMPT.format(query=query.question,tools=tool_strings)

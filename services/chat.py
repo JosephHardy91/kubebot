@@ -9,7 +9,7 @@ from tools import search_tools
 model = init_chat_model("openai:gpt-5.2")
 
 tools = [*search_tools]
-agent = create_agent("openai:gpt-5.2", tools = tools)
+agent = create_agent("openai:gpt-5.2", tools=tools)
 
 def run_chat_only_pipeline(query: UserQuery)->Answer | None:
     db_results: list[Source] = search_db(query)
@@ -30,6 +30,9 @@ def run_chat_only_pipeline(query: UserQuery)->Answer | None:
     return Answer(answer=response.text, sources=db_results)
 
 def collect_sources(response)->list[Source]:
+    # TODO: Extract Source objects from agent/tool calls in `response`,
+    #       e.g., by parsing tool invocation results and mapping them to
+    #       instances of `Source`. For now, this returns an empty list.
     return []
 
 def run_agent_pipeline(query: UserQuery)->Answer | None:
