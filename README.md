@@ -118,16 +118,16 @@ dagster asset materialize -m etl.definitions --select '*'
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENAI_API_KEY` | - | OpenAI API key (required) |
-| `DB_HOST` | `localhost` | PostgreSQL host |
-| `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_USER` | `dev` | Database user |
-| `DB_PASSWORD` | `devpass` | Database password |
-| `DB_NAME` | `kubebot` | Database name |
+| Variable          | Default     | Description                        |
+| ----------------- | ----------- | ---------------------------------- |
+| `OPENAI_API_KEY`  | -           | OpenAI API key (required)          |
+| `DB_HOST`         | `localhost` | PostgreSQL host                    |
+| `DB_PORT`         | `5432`      | PostgreSQL port                    |
+| `DB_USER`         | `dev`       | Database user                      |
+| `DB_PASSWORD`     | `devpass`   | Database password                  |
+| `DB_NAME`         | `kubebot`   | Database name                      |
 | `DAGSTER_DB_HOST` | `localhost` | DB host for Dagster (runs on host) |
-| `DAGSTER_DB_PORT` | `5433` | DB port for Dagster (mapped port) |
+| `DAGSTER_DB_PORT` | `5433`      | DB port for Dagster (mapped port)  |
 
 ### Rebuilding
 
@@ -145,10 +145,10 @@ dagster asset materialize -m etl.definitions --select '*'
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/ask_simple` | POST | Direct RAG pipeline (faster, simpler) |
-| `/ask` | POST | Agent pipeline with tool use (richer answers) |
+| Endpoint      | Method | Description                                   |
+| ------------- | ------ | --------------------------------------------- |
+| `/ask_simple` | POST   | Direct RAG pipeline (faster, simpler)         |
+| `/ask`        | POST   | Agent pipeline with tool use (richer answers) |
 
 **Request body:**
 
