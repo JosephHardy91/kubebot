@@ -1,0 +1,12 @@
+# .importlinter
+[importlinter]
+root_package = kubebot
+
+[importlinter:contract:layers]
+name = Layered architecture
+type = layers
+layers =
+    app
+    services
+    (models|prompts|tools)
+    etl

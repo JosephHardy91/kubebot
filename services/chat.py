@@ -35,7 +35,23 @@ def collect_sources(response)->list[Source]:
     #       instances of `Source`. For now, this returns an empty list.
     return []
 
-def run_agent_pipeline(query: UserQuery)->Answer | None:
+def get_last_ai_message(messages: list) -> AIMessage | None:
+    """Get the last AI message from a list of messages."""
+    ai_messages = [m for m in messages if isinstance(m, AIMessage)]
+    return ai_messages[-1] if ai_messages else None
+
+def extract_ai_response(response: dict) -> str | None:
+    """Extract final AI message text from agent response."""
+    messages = response.get('messages', [])
+    last_ai = get_last_ai_message(messages)
+    return last_ai.text if last_ai else None
+
+def run_agent_pipeline(query: UserQuery, session_id: str | None)->tuple[Answer | None, str]:
+    if not session_id:
+        session_id = generate_session_id()
+
+    assert agent is not None, "Agents not initialized. Call init_agents() first."
+    
     user_prompt: str = make_agent_prompt(query, tools)
 
     response = agent.invoke(
@@ -46,11 +62,9 @@ def run_agent_pipeline(query: UserQuery)->Answer | None:
         }
     )
     print(response)
-    if not response.get('messages'):
-        return None
-    ai_messages = list(filter(lambda m:isinstance(m,AIMessage),response['messages']))
-    if not ai_messages:
-        return None
-    if not ai_messages[-1].text:
-        return None
-    return Answer(answer=ai_messages[-1].text, sources=collect_sources(response))
+    
+    answer_text = extract_ai_response(response)
+    if not answer_text:
+        return None, session_id
+
+    return Answer(answer=answer_text, sources=collect_sources(response)), session_id

@@ -1,9 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Cookie, Response
 from models import UserQuery, Answer
-from services import run_chat_only_pipeline, run_agent_pipeline
+from services import run_chat_only_pipeline, run_agent_pipeline, lifespan
 
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.post('/ask_simple')
 async def ask_question_simple(query: UserQuery)->Answer | None:
