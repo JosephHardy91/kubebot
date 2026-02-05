@@ -1,9 +1,9 @@
 from models import UserQuery
 
 AGENTIC_PROMPT = '''
-You must use tools to answer this user query. Ground your answer solely to the information you find with the tools.
+You must use tools to answer this user query. Ground your answer solely to the information you find with the tools and previous messages.
 
-Answer the user query using only information you find with available tools.
+Answer the user query using only information you find with available tools and previous messages.
 
 This is the list of your tools:
 {tools}

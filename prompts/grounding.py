@@ -2,8 +2,8 @@ from models import Source, UserQuery
 
 GROUNDING_PROMPT = """
 You will be given a piece of source information from the Kubernetes documentation and a user query.
-You must answer from the provided documentation only. Ground your answer to the provided documentation.
-Answer the user query with respect only to the Kubernetes documentation.
+You must answer from the provided documentation and previous messages only. Ground your answer to the provided documentation and previous messages.
+Answer the user query with respect only to the Kubernetes documentation and previous messages.
 """
 
 SOURCE_PROMPT = """
