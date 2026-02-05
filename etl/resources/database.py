@@ -22,3 +22,6 @@ class PostgresResource(dg.ConfigurableResource):
             yield conn
         finally:
             conn.close()
+
+    def get_conn_string(self):
+        return f'postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}?sslmode=disable'

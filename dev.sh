@@ -29,3 +29,10 @@ docker compose up -d api --build
 
 echo "✅ Ready! API available at http://localhost:8000"
 echo "Run 'dagster dev -m etl.definitions' in a separate terminal for the Dagster UI"
+
+# Add aliases if not already present
+if ! grep -q "alias kubebot=" ~/.bashrc; then
+    echo 'alias kubebot='\''f(){ curl -s -X POST localhost:8000/ask --data "{\"question\":\"$1\"}" -H "Content-Type: application/json" -b ~/.kubebot_cookies -c ~/.kubebot_cookies | jq -r ".answer" | glow; }; f'\''' >> ~/.bashrc
+    echo 'alias kubebot_clear='\''rm -f ~/.kubebot_cookies && echo "Session cleared"'\''' >> ~/.bashrc
+    echo "Added kubebot aliases to ~/.bashrc - run 'source ~/.bashrc' to activate"
+fi
