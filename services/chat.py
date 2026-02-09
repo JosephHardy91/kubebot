@@ -1,18 +1,22 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, TypeVar, get_origin, get_args
 from models import UserQuery, Source, Answer
-from langchain.messages import AIMessage
+from langchain.messages import AIMessage, ToolMessage
 from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
-from .db import search_db
+from .db import search_db, map_source
 from .memory import generate_session_id
 from prompts import make_grounding_prompt, make_agent_prompt
 from tools import search_tools
+from ordered_set import OrderedSet
+
+T = TypeVar('T')
 
 if TYPE_CHECKING:
     from langchain.chat_models import BaseChatModel
     from langgraph.graph.state import CompiledStateGraph
 
-tools = [*search_tools]
+tools = [*search_tools.values()]
+search_tool_names = list(search_tools.keys())
 model: "BaseChatModel | None" = None
 agent: "CompiledStateGraph | None" = None
 
@@ -48,11 +52,72 @@ def run_chat_only_pipeline(query: UserQuery, session_id: str | None)->tuple[Answ
         return None, session_id
     return Answer(answer=response.text, sources=db_results), session_id
 
-def collect_sources(response)->list[Source]:
-    # TODO: Extract Source objects from agent/tool calls in `response`,
-    #       e.g., by parsing tool invocation results and mapping them to
-    #       instances of `Source`. For now, this returns an empty list.
-    return []
+def ensure_type(obj, expected_type) -> bool:
+    """Check if obj matches expected_type, supporting generics like list[Source]."""
+    origin = get_origin(expected_type)
+    
+    if origin is None:
+        # Not a generic type, use regular isinstance
+        return isinstance(obj, expected_type)
+    
+    # Check the container type first
+    if not isinstance(obj, origin):
+        return False
+    
+    args = get_args(expected_type)
+    if not args:
+        return True
+    
+    # For list[T], check all elements
+    if origin is list:
+        return all(ensure_type(item, args[0]) for item in obj)
+    
+    # For dict[K, V], check keys and values
+    if origin is dict:
+        return all(
+            ensure_type(k, args[0]) and ensure_type(v, args[1])
+            for k, v in obj.items()
+        )
+    
+    # For other generics, just check the container
+    return True
+
+def flatten_list_of_lists(list_of_lists:list[list[T]])->list[T]:
+    flattened: list[T] = [
+        v for l in list_of_lists for v in l
+    ]
+    return flattened
+
+def to_source(item) -> Source:
+    """Convert item to Source - handles both Source instances and dicts."""
+    if isinstance(item, Source):
+        return item
+    if isinstance(item, dict):
+        return Source.model_validate(item)
+    raise ValueError(f"Cannot convert {type(item)} to Source")
+
+def collect_sources(response: dict)->OrderedSet[Source]:
+    messages = response.get('messages',[])
+    tool_messages: Iterable[ToolMessage] = filter(lambda m:isinstance(m, ToolMessage), messages)
+    search_tool_results: Iterable[ToolMessage] = filter(lambda tm:tm.name in search_tool_names,tool_messages)
+    search_tool_artifacts = [stm.artifact for stm in search_tool_results if stm.artifact is not None]
+    if not search_tool_artifacts:
+        return OrderedSet([])
+    
+    # Convert dicts to Source instances (artifacts may be serialized as dicts in history)
+    search_tool_contents: list[list[Source]] = [
+        [to_source(item) for item in artifact] 
+        for artifact in search_tool_artifacts
+    ]
+    
+    if not ensure_type(search_tool_contents, list[list[Source]]):
+        raise ValueError(f"Search tool contents not verifiable as list of list `Source`s:{str(search_tool_contents)}")
+    
+    sources = flatten_list_of_lists(search_tool_contents)
+    if not ensure_type(sources, list[Source]):
+        raise ValueError(f"Sources not verifiable as list of `Sources`s:{str(sources)}")
+
+    return OrderedSet(sources)
 
 def get_last_ai_message(messages: list) -> AIMessage | None:
     """Get the last AI message from a list of messages."""
@@ -81,7 +146,6 @@ def run_agent_pipeline(query: UserQuery, session_id: str | None)->tuple[Answer |
         },
         config = {'configurable':{'thread_id': session_id}}
     )
-    print(response)
     
     answer_text = extract_ai_response(response)
     if not answer_text:

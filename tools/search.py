@@ -1,21 +1,27 @@
+import json
 from models import UserQuery, Source
 from langchain.tools import tool
 from services.db import database, map_source, search_db
 from psycopg2.extras import RealDictCursor
 
-@tool
-def initial_search(query: UserQuery, k:int = 3)->list[Source]:
+def serialize_sources(sources: list[Source]) -> str:
+    """Serialize sources to JSON string for LLM consumption."""
+    return json.dumps([s.model_dump() for s in sources])
+
+@tool(response_format="content_and_artifact")
+def initial_search(query: UserQuery, k:int = 3)->tuple[str, list[Source]]:
     '''Input a user query and get an initial set of sources.'''
-    return search_db(query, k)
+    sources = search_db(query, k)
+    return serialize_sources(sources), sources
 
-@tool
-def find_related_resources(resource_name: str, k:int = 5)->list[Source]:
+@tool(response_format="content_and_artifact")
+def find_related_resources(resource_name: str, k:int = 5)->tuple[str, list[Source]]:
     '''Find resources related to a given resource name by semantic similarity. Use to explore related Kubernetes resources.'''
-    # Use the resource name as a query to find semantically similar docs
-    return search_db(UserQuery(question=resource_name), k)
+    sources = search_db(UserQuery(question=resource_name), k)
+    return serialize_sources(sources), sources
 
-@tool 
-def get_resource_by_name(resource_name: str)->list[Source]:
+@tool(response_format="content_and_artifact")
+def get_resource_by_name(resource_name: str)->tuple[str, list[Source]]:
     '''Get the full documentation for a specific Kubernetes resource by its exact name (e.g., "pods", "deployments.apps").'''
     sources: list[Source] = []
     with database.get_connection() as conn:
@@ -27,11 +33,10 @@ def get_resource_by_name(resource_name: str)->list[Source]:
                 LIMIT 1
                 ''', (resource_name, resource_name))
         sources = list(map(map_source, cur.fetchall()))
-        print(f'Found {len(sources)} docs for resource {resource_name}')
-    return sources
+    return serialize_sources(sources), sources
 
-search_tools = [
-    initial_search,
-    find_related_resources,
-    get_resource_by_name
-]
+search_tools = {
+    'initial_search':initial_search,
+    'find_related_resources':find_related_resources,
+    'get_resource_by_name':get_resource_by_name
+}
