@@ -9,7 +9,10 @@ app = FastAPI(lifespan=lifespan)
 async def ask_question_simple(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | None:
     answer: Answer | None = None
     returned_session_id:str = ''
-    answer, returned_session_id = run_chat_only_pipeline(query, kubebot_session_id)
+    try:
+        answer, returned_session_id = run_chat_only_pipeline(query, kubebot_session_id)
+    except Exception as e:
+        return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if kubebot_session_id:
         assert returned_session_id == kubebot_session_id, "Bad session ID returned from pipeline."
     response.set_cookie(key='kubebot_session_id',value=returned_session_id)
@@ -19,7 +22,10 @@ async def ask_question_simple(response: Response, query: UserQuery, kubebot_sess
 async def ask_question(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | None:
     answer: Answer | None = None
     returned_session_id:str = ''
-    answer, returned_session_id = run_agent_pipeline(query, kubebot_session_id)
+    try:
+        answer, returned_session_id = run_agent_pipeline(query, kubebot_session_id)
+    except Exception as e:
+        return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if kubebot_session_id:
         assert returned_session_id == kubebot_session_id, "Bad session ID returned from pipeline."
     response.set_cookie(key='kubebot_session_id',value=returned_session_id)
