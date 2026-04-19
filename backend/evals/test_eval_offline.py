@@ -87,6 +87,12 @@ class TestRetrievalHelpers:
         )
         assert hit is True
 
+    def test_no_false_positive_substring(self):
+        """'nodes' should NOT match 'nodeselector' — they are different resources."""
+        hit, rr = _compute_hit_and_rr(["nodes"], ["nodeselector"])
+        assert hit is False
+        assert rr == 0.0
+
     def test_empty_retrieved(self):
         hit, rr = _compute_hit_and_rr(["pods"], [])
         assert hit is False

@@ -46,7 +46,11 @@ def _make_retrieval_fn(base_url: str):
         resp.raise_for_status()
         data = resp.json()
         sources = data.get("sources", [])
-        return [s.get("doc_path", s.get("title", "")) for s in sources]
+        resources = [
+            s.get("doc_path") or s.get("title", "")
+            for s in sources
+        ]
+        return [r for r in resources if r]
 
     return retrieval_fn
 

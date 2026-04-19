@@ -65,10 +65,19 @@ def _compute_hit_and_rr(
     """Return (hit, reciprocal_rank) for one question."""
     for rank, resource in enumerate(retrieved, start=1):
         resource_lower = resource.lower()
+        # Split on '.' to get individual segments for matching
+        # e.g. "deployments.apps" -> ["deployments", "apps"]
+        resource_segments = resource_lower.split(".")
         for exp in expected:
-            # Match if the expected resource name appears in the retrieved
-            # resource path (e.g. "pods" matches "pods" or "pods.v1").
-            if exp.lower() in resource_lower or resource_lower in exp.lower():
+            exp_lower = exp.lower()
+            exp_segments = exp_lower.split(".")
+            # Exact match
+            if exp_lower == resource_lower:
+                return True, 1.0 / rank
+            # Expected resource is a prefix segment match
+            # e.g. expected "deployments.apps" matches retrieved "deployments"
+            # or expected "pods" matches retrieved "pods.v1"
+            if exp_segments[0] == resource_segments[0]:
                 return True, 1.0 / rank
     return False, 0.0
 

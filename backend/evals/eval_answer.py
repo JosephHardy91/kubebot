@@ -129,7 +129,7 @@ def _llm_faithfulness(
             temperature=0.0,
         )
         text = response.choices[0].message.content or ""
-        match = re.search(r'"score"\s*:\s*([\d.]+)', text)
+        match = re.search(r'"score"\s*:\s*(\d+\.?\d*)', text)
         if match:
             return min(max(float(match.group(1)), 0.0), 1.0)
     except Exception:
