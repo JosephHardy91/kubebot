@@ -2,6 +2,8 @@
 
 A RAG-powered Kubernetes documentation assistant. Ask questions about Kubernetes resources and get grounded answers from the official API documentation.
 
+> **Deployment status:** Runs locally via Docker Compose; cloud deployment is in progress.
+
 ## Prerequisites
 
 - Docker & Docker Compose
