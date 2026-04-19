@@ -52,11 +52,15 @@ resource "aws_db_instance" "main" {
   skip_final_snapshot = true  # Set false for prod
   deletion_protection = false # Set true for prod
 
-  # Enable pgvector
-  # Note: pgvector needs to be enabled via SQL after creation:
-  # CREATE EXTENSION vector;
-
   tags = {
     Name = "${var.project_name}-db"
+  }
+}
+
+resource "null_resource" "enable_pgvector" {
+  depends_on = [aws_db_instance.main]
+
+  provisioner "local-exec" {
+    command = "PGPASSWORD=${var.db_password} psql -h ${aws_db_instance.main.address} -U ${aws_db_instance.main.username} -d ${aws_db_instance.main.db_name} -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
   }
 }
