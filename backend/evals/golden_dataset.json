@@ -1,0 +1,182 @@
+[
+  {
+    "id": "q01",
+    "question": "What is a Pod in Kubernetes?",
+    "expected_resources": ["pods"],
+    "expected_keywords": ["smallest", "deployable", "container", "node"]
+  },
+  {
+    "id": "q02",
+    "question": "How do I create a Deployment?",
+    "expected_resources": ["deployments.apps"],
+    "expected_keywords": ["replicas", "template", "spec", "selector"]
+  },
+  {
+    "id": "q03",
+    "question": "What is a Service and how does it work?",
+    "expected_resources": ["services"],
+    "expected_keywords": ["network", "endpoint", "selector", "port"]
+  },
+  {
+    "id": "q04",
+    "question": "How do ConfigMaps work?",
+    "expected_resources": ["configmaps"],
+    "expected_keywords": ["key-value", "configuration", "volume", "env"]
+  },
+  {
+    "id": "q05",
+    "question": "What is a Namespace?",
+    "expected_resources": ["namespaces"],
+    "expected_keywords": ["isolation", "scope", "cluster", "resource"]
+  },
+  {
+    "id": "q06",
+    "question": "How do I use Secrets in Kubernetes?",
+    "expected_resources": ["secrets"],
+    "expected_keywords": ["sensitive", "encoded", "base64", "volume"]
+  },
+  {
+    "id": "q07",
+    "question": "What is a StatefulSet?",
+    "expected_resources": ["statefulsets.apps"],
+    "expected_keywords": ["stateful", "persistent", "ordered", "identity"]
+  },
+  {
+    "id": "q08",
+    "question": "How do I configure a DaemonSet?",
+    "expected_resources": ["daemonsets.apps"],
+    "expected_keywords": ["node", "every", "daemon", "pod"]
+  },
+  {
+    "id": "q09",
+    "question": "What is a ReplicaSet?",
+    "expected_resources": ["replicasets.apps"],
+    "expected_keywords": ["replicas", "pods", "selector", "desired"]
+  },
+  {
+    "id": "q10",
+    "question": "How do I set up an Ingress?",
+    "expected_resources": ["ingresses.networking.k8s.io"],
+    "expected_keywords": ["HTTP", "host", "path", "routing"]
+  },
+  {
+    "id": "q11",
+    "question": "What is a PersistentVolume?",
+    "expected_resources": ["persistentvolumes"],
+    "expected_keywords": ["storage", "capacity", "reclaim", "access"]
+  },
+  {
+    "id": "q12",
+    "question": "How do PersistentVolumeClaims work?",
+    "expected_resources": ["persistentvolumeclaims"],
+    "expected_keywords": ["storage", "request", "bound", "access"]
+  },
+  {
+    "id": "q13",
+    "question": "What is a Job in Kubernetes?",
+    "expected_resources": ["jobs.batch"],
+    "expected_keywords": ["completion", "run", "batch", "pod"]
+  },
+  {
+    "id": "q14",
+    "question": "How do CronJobs work?",
+    "expected_resources": ["cronjobs.batch"],
+    "expected_keywords": ["schedule", "cron", "periodic", "job"]
+  },
+  {
+    "id": "q15",
+    "question": "What are ResourceQuotas?",
+    "expected_resources": ["resourcequotas"],
+    "expected_keywords": ["limit", "namespace", "resource", "quota"]
+  },
+  {
+    "id": "q16",
+    "question": "How do I configure a NetworkPolicy?",
+    "expected_resources": ["networkpolicies.networking.k8s.io"],
+    "expected_keywords": ["ingress", "egress", "pod", "selector"]
+  },
+  {
+    "id": "q17",
+    "question": "What are ServiceAccounts used for?",
+    "expected_resources": ["serviceaccounts"],
+    "expected_keywords": ["identity", "pod", "token", "API"]
+  },
+  {
+    "id": "q18",
+    "question": "How do I create a Role for RBAC?",
+    "expected_resources": ["roles.rbac.authorization.k8s.io"],
+    "expected_keywords": ["permission", "verb", "resource", "rule"]
+  },
+  {
+    "id": "q19",
+    "question": "What is a ClusterRole?",
+    "expected_resources": ["clusterroles.rbac.authorization.k8s.io"],
+    "expected_keywords": ["cluster", "permission", "non-namespaced", "rule"]
+  },
+  {
+    "id": "q20",
+    "question": "How do RoleBindings work?",
+    "expected_resources": ["rolebindings.rbac.authorization.k8s.io"],
+    "expected_keywords": ["bind", "role", "subject", "user"]
+  },
+  {
+    "id": "q21",
+    "question": "What is a HorizontalPodAutoscaler?",
+    "expected_resources": ["horizontalpodautoscalers.autoscaling"],
+    "expected_keywords": ["scale", "metric", "CPU", "replicas"]
+  },
+  {
+    "id": "q22",
+    "question": "How do LimitRanges work?",
+    "expected_resources": ["limitranges"],
+    "expected_keywords": ["default", "min", "max", "container"]
+  },
+  {
+    "id": "q23",
+    "question": "What is an Endpoint in Kubernetes?",
+    "expected_resources": ["endpoints"],
+    "expected_keywords": ["address", "port", "service", "IP"]
+  },
+  {
+    "id": "q24",
+    "question": "How do I use a StorageClass?",
+    "expected_resources": ["storageclasses.storage.k8s.io"],
+    "expected_keywords": ["provisioner", "dynamic", "reclaim", "volume"]
+  },
+  {
+    "id": "q25",
+    "question": "What are Events in Kubernetes?",
+    "expected_resources": ["events"],
+    "expected_keywords": ["reason", "message", "object", "type"]
+  },
+  {
+    "id": "q26",
+    "question": "How do I configure a PodDisruptionBudget?",
+    "expected_resources": ["poddisruptionbudgets.policy"],
+    "expected_keywords": ["minAvailable", "maxUnavailable", "voluntary", "disruption"]
+  },
+  {
+    "id": "q27",
+    "question": "What is a Node in Kubernetes?",
+    "expected_resources": ["nodes"],
+    "expected_keywords": ["worker", "kubelet", "machine", "cluster"]
+  },
+  {
+    "id": "q28",
+    "question": "How does the Kubernetes scheduler work?",
+    "expected_resources": ["pods", "nodes"],
+    "expected_keywords": ["schedule", "node", "resource", "affinity"]
+  },
+  {
+    "id": "q29",
+    "question": "What are container resource requests and limits?",
+    "expected_resources": ["pods", "limitranges"],
+    "expected_keywords": ["CPU", "memory", "request", "limit"]
+  },
+  {
+    "id": "q30",
+    "question": "How do I set up a container liveness probe?",
+    "expected_resources": ["pods"],
+    "expected_keywords": ["probe", "liveness", "httpGet", "health"]
+  }
+]

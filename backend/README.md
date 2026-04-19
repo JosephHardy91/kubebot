@@ -143,6 +143,71 @@ After ETL changes, re-run the pipeline:
 dagster asset materialize -m etl.definitions --select '*'
 ```
 
+## Evaluation
+
+Kubebot includes a hand-rolled evaluation framework built on a **30-question golden dataset** of Kubernetes questions with expected resources and answer keywords.
+
+### Metrics
+
+| Metric | Description | Target |
+| --- | --- | --- |
+| **hit@k** | Fraction of questions where any expected resource appears in the top-k retrieved docs | ≥ 0.80 |
+| **MRR@k** | Mean Reciprocal Rank — rewards retrieving the correct resource at higher ranks | ≥ 0.70 |
+| **Keyword Coverage** | Fraction of expected keywords present in the generated answer | ≥ 0.50 |
+| **Answer Relevance** | 1.0 if the answer contains at least one expected keyword, else 0.0 | ≥ 0.90 |
+| **Faithfulness** | LLM-as-judge score (0–1) rating how well the answer is grounded in retrieved context | ≥ 0.80 |
+
+### Golden Dataset
+
+The golden dataset (`evals/golden_dataset.json`) contains 30 curated questions covering:
+
+- **Core workloads**: Pods, Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
+- **Networking**: Services, Ingress, NetworkPolicies, Endpoints
+- **Storage**: PersistentVolumes, PersistentVolumeClaims, StorageClasses
+- **Configuration**: ConfigMaps, Secrets, LimitRanges, ResourceQuotas
+- **Access control**: ServiceAccounts, Roles, ClusterRoles, RoleBindings
+- **Cluster operations**: Nodes, Namespaces, HPA, PodDisruptionBudgets, Events
+- **Pod internals**: Scheduling, resource requests/limits, liveness probes
+
+Each question specifies `expected_resources` (for retrieval eval) and `expected_keywords` (for answer quality eval).
+
+### Running Evaluations
+
+**Against a live Kubebot instance:**
+
+```bash
+# Retrieval metrics only
+python -m evals.run_eval --retrieval -k 3 -v
+
+# Answer quality metrics
+python -m evals.run_eval --answer -v
+
+# Full suite with LLM faithfulness scoring
+python -m evals.run_eval --all --faithfulness -v
+
+# JSON output for CI integration
+python -m evals.run_eval --all --json
+```
+
+**Offline tests (no external dependencies):**
+
+```bash
+cd backend && python -m pytest evals/test_eval_offline.py -v
+```
+
+The offline test suite validates the evaluation framework itself using synthetic retrievers and answer generators, verifying correct metric computation across 23 test cases.
+
+### Architecture
+
+```
+evals/
+├── golden_dataset.json       # 30 K8s questions + expected resources/keywords
+├── eval_retrieval.py          # Retrieval eval (hit@k, MRR@k)
+├── eval_answer.py             # Answer eval (keyword coverage, relevance, faithfulness)
+├── run_eval.py                # CLI runner for live evaluation
+└── test_eval_offline.py       # Pytest offline tests (23 cases)
+```
+
 ## API Endpoints
 
 | Endpoint      | Method | Description                                   |
