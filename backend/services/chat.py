@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Iterable, TypeVar, get_origin, get_args
 from models import UserQuery, Source, Answer
 from langchain.messages import AIMessage, ToolMessage
-from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
 from .db import search_db, map_source
 from .memory import generate_session_id
@@ -12,19 +11,20 @@ from ordered_set import OrderedSet
 T = TypeVar('T')
 
 if TYPE_CHECKING:
-    from langchain.chat_models import BaseChatModel
     from langgraph.graph.state import CompiledStateGraph
 
 tools = [*search_tools.values()]
 search_tool_names = list(search_tools.keys())
-model: "BaseChatModel | None" = None
+chat_agent: "CompiledStateGraph | None" = None
 agent: "CompiledStateGraph | None" = None
 
 def init_agents(checkpointer):
     """Initialize agents with the given checkpointer. Called from app lifespan."""
-    global model, agent
-    model = init_chat_model("openai:gpt-5.4")
-    agent = create_agent("openai:gpt-5.4", 
+    global chat_agent, agent
+    chat_agent = create_agent("openai:gpt-4o",
+                              tools=[],
+                              checkpointer=checkpointer)
+    agent = create_agent("openai:gpt-4o", 
                          tools=tools,
                          checkpointer=checkpointer)
 
@@ -32,25 +32,28 @@ def run_chat_only_pipeline(query: UserQuery, session_id: str | None)->tuple[Answ
     if not session_id:
         session_id = generate_session_id()
     
-    assert model is not None, "Agents not initialized. Call init_agents() first."
+    assert chat_agent is not None, "Agents not initialized. Call init_agents() first."
 
     db_results: list[Source] = search_db(query)
     if not db_results:
-        return Answer(answer='Oh fuck!',sources=[]), session_id
+        return Answer(answer='Sorry, I couldn\'t find any relevant information for your question.',sources=[]), session_id
     
     prompts: dict[str,str] = make_grounding_prompt(db_results,query)
 
-    response = model.invoke(
-        [
-            {'role':'system','content':prompts['system']},
-            {'role':'user','content':prompts['user']}
-        ],
+    response = chat_agent.invoke(
+        {'messages':
+            [
+                {'role':'system','content':prompts['system']},
+                {'role':'user','content':prompts['user']}
+            ]
+        },
         config = {'configurable':{'thread_id': session_id}}
     )
 
-    if not response.text:
+    answer_text = extract_ai_response(response)
+    if not answer_text:
         return None, session_id
-    return Answer(answer=response.text, sources=db_results), session_id
+    return Answer(answer=answer_text, sources=db_results), session_id
 
 def ensure_type(obj, expected_type) -> bool:
     """Check if obj matches expected_type, supporting generics like list[Source]."""

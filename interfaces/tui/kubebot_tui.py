@@ -11,10 +11,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll, Horizontal
 from textual.widgets import Input, Markdown, Static
-from tui_types import KubebotSessionInfo
 from typing import Dict
-
-import secrets
 
 
 class KubebotApp(App):
@@ -28,21 +25,20 @@ class KubebotApp(App):
         Binding('left','move_left','Move Left')
     ]
 
-    source_list = []
-    source_cache = {}
-    sources_markdown = []
-    qa_list = []
-    qa_markdown = []
     qa_list_pos = 0
 
     qas = getters.query_one("#qas", Markdown)
     sources = getters.query_one('#sources',Static)
     query_input = getters.query_one(Input)
-    
-    #kubebot info
-    current_session_details = KubebotSessionInfo(
-        session_id=secrets.token_urlsafe(32)
-    )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.source_list: list = []
+        self.source_cache: dict = {}
+        self.sources_markdown: list = []
+        self.qa_list: list = []
+        self.qa_markdown: list = []
+        self.cookies: httpx.Cookies = httpx.Cookies()
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -78,11 +74,12 @@ class KubebotApp(App):
     async def handle_query(self, query:str)->None:
         try:
             url = f"{self.BASE_URL}/ask"
-            async with httpx.AsyncClient() as client:
-                response = (await client.post(url,timeout=30,json={
+            async with httpx.AsyncClient(cookies=self.cookies) as client:
+                resp = await client.post(url,timeout=30,json={
                     'question':query,
-                    'kubebot_session_id':self.current_session_details.session_id
-                })).json()
+                })
+                self.cookies.update(resp.cookies)
+                response = resp.json()
                 if 'answer' not in response:
                     self.qas.update(str(response))
                 else:
@@ -91,7 +88,7 @@ class KubebotApp(App):
                     self.add_qa(query,answer)
                     self.add_sources(sources)
                     self.panes_refresh()
-        except:
+        except Exception:
             self.qas.update("Sorry, had trouble getting the answer to you. Try again later.")
 
     def action_get_source_info(self,doc_path):
