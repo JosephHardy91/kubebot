@@ -1,0 +1,48 @@
+Screen {
+    background: $panel-darken-1;
+}
+
+Input#dictionary-search {
+    dock: top;
+    margin: 1 0;
+}
+
+#qas {
+    width: 100%;
+    height: auto;
+}
+
+Markdown .code_inline, MarkdownFenceCode, MarkdownFenceCode Static {
+    overflow-x: hidden;
+}
+
+#qas-container {
+    background: $surface;
+    margin: 0 0 1 0;
+    height: 100%;
+    overflow: hidden auto;
+    border: tall transparent;
+    width:75%
+}
+
+#sources {
+    width: 100%;
+    height: auto;
+}
+
+#sources-container {
+    background: $surface;
+    margin: 0 0 1 0;
+    height: 100%;
+    overflow: hidden auto;
+    border: tall transparent;
+    width:24%
+}
+
+#results-container:focus {
+    border: tall $border;
+}
+
+#sources-container:focus {
+    border: tall $border;
+}

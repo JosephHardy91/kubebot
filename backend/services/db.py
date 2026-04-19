@@ -20,9 +20,7 @@ def map_source(k8_doc: dict):
     )
 
 def search_db(query: UserQuery, k:int = 3)->list[Source]:
-    print(f"Searching for: {query.question}")
     question_embedding = embeddings.get_client().embed_query(query.question)
-    print(f"Embedding length: {len(question_embedding)}")
     db_results = []
     with database.get_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -34,7 +32,6 @@ def search_db(query: UserQuery, k:int = 3)->list[Source]:
         ''', (question_embedding, k))
 
         related_docs = cur.fetchall()
-        print(f"Found {len(related_docs)} docs")
 
         db_results: list[Source] = list(map(map_source,related_docs))
     return db_results
