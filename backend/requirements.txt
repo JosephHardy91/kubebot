@@ -10,4 +10,3 @@ pydantic
 psycopg2-binary
 fastapi
 ordered_set
-sentence-transformers
