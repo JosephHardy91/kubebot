@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 from models import Source, UserQuery, Answer
 
 
@@ -13,7 +14,7 @@ def test_source_creation():
 
 def test_source_is_frozen():
     s = Source(doc_path="/docs/pods", title="Pods", relevant_info="Pod info")
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         s.title = "Changed"
 
 
@@ -36,7 +37,7 @@ def test_user_query_creation():
 
 
 def test_user_query_missing_field():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         UserQuery()
 
 
