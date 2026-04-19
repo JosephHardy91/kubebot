@@ -1,0 +1,10 @@
+-- Spec
+Typing "kubebot" into terminal or 'kubebot "question here"' should open an interactive terminal session that displays the messages in a 
+session and allows the user to arrow through system messages. Upon arrival at a system message, the sources should be displayed in a 
+right-hand pane (if they exist and are retrievable) so the user can deep dive.
+
+-- Needs
+alias "kubebot" needs to touch the UI
+UI needs to touch the backend - retrieve a thread or create a new one
+UI needs to manage display of the thread, including message history (left/center)
+and sources for the currently selected message (right pane)
