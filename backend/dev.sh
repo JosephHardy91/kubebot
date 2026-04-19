@@ -20,7 +20,7 @@ sleep 5
 
 # Run ETL to populate database
 echo "Running ETL pipeline..."
-source .venv/bin/activate
+source ../.venv/bin/activate
 dagster asset materialize -m etl.definitions --select '*'
 
 # Now start the API

@@ -23,8 +23,8 @@ agent: "CompiledStateGraph | None" = None
 def init_agents(checkpointer):
     """Initialize agents with the given checkpointer. Called from app lifespan."""
     global model, agent
-    model = init_chat_model("openai:gpt-5.2")
-    agent = create_agent("openai:gpt-5.2", 
+    model = init_chat_model("openai:gpt-5.4")
+    agent = create_agent("openai:gpt-5.4", 
                          tools=tools,
                          checkpointer=checkpointer)
 
