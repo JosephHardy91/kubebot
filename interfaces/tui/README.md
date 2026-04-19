@@ -29,10 +29,4 @@ Start the backend first (`bash backend/dev.sh`), then:
 python interfaces/tui/kubebot_tui.py
 ```
 
-Or use the alias (see `interfaces/make_local_alias.sh`):
-
-```
-kubebot
-```
-
 Type a question in the input bar and press Enter. Navigate answer history with arrow keys. Click sources in the right pane to inspect them.
