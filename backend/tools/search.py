@@ -22,16 +22,19 @@ def find_related_resources(resource_name: str, k:int = 5)->tuple[str, list[Sourc
 
 @tool(response_format="content_and_artifact")
 def get_resource_by_name(resource_name: str)->tuple[str, list[Source]]:
-    '''Get the full documentation for a specific Kubernetes resource by its exact name (e.g., "pods", "deployments.apps").'''
+    '''Get the full documentation for a specific Kubernetes resource by its exact name (e.g., "pods", "deployments.apps"). Returns all chunks belonging to the resource.'''
     sources: list[Source] = []
     with database.get_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Escape LIKE metacharacters in the resource name before using in pattern
+        escaped = resource_name.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        like_pattern = escaped + '.%'
         cur.execute('''
                 SELECT id, resource, field_path, content
                 FROM k8s_docs
-                WHERE field_path = %s OR resource = %s
-                LIMIT 1
-                ''', (resource_name, resource_name))
+                WHERE resource = %s OR field_path = %s OR field_path LIKE %s
+                ORDER BY id
+                ''', (resource_name, resource_name, like_pattern))
         sources = list(map(map_source, cur.fetchall()))
     return serialize_sources(sources), sources
 
