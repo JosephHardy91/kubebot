@@ -16,12 +16,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 from dataclasses import dataclass, field
-
-# Ensure the backend package root is importable when running as ``python -m``
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from eval import EVAL_SET  # noqa: E402
 from models import UserQuery, Source  # noqa: E402
