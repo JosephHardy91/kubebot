@@ -26,12 +26,15 @@ def get_resource_by_name(resource_name: str)->tuple[str, list[Source]]:
     sources: list[Source] = []
     with database.get_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Escape LIKE metacharacters in the resource name before using in pattern
+        escaped = resource_name.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        like_pattern = escaped + '.%'
         cur.execute('''
                 SELECT id, resource, field_path, content
                 FROM k8s_docs
                 WHERE resource = %s OR field_path = %s OR field_path LIKE %s
                 ORDER BY id
-                ''', (resource_name, resource_name, resource_name + '.%'))
+                ''', (resource_name, resource_name, like_pattern))
         sources = list(map(map_source, cur.fetchall()))
     return serialize_sources(sources), sources
 

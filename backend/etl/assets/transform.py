@@ -2,6 +2,8 @@ import dagster as dg
 from dataclasses import dataclass
 import re
 
+_FIELD_LINE_RE = re.compile(r'^( *)(\S+)\s*(.*)$')
+
 @dataclass
 class DocChunk:
     resource: str
@@ -11,7 +13,7 @@ class DocChunk:
 
 def _parse_field_line(line: str):
     """Return (indent_level, field_name, type_annotation) or None."""
-    match = re.match(r'^( *)(\S+)\s*(.*)$', line)
+    match = _FIELD_LINE_RE.match(line)
     if not match:
         return None
     indent = len(match.group(1))
