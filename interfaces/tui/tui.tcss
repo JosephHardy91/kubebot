@@ -12,6 +12,10 @@ Input#dictionary-search {
     height: auto;
 }
 
+Markdown .code_inline, MarkdownFenceCode, MarkdownFenceCode Static {
+    overflow-x: hidden;
+}
+
 #qas-container {
     background: $surface;
     margin: 0 0 1 0;
