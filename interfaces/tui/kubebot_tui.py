@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Dict
 
 try:
     import httpx
@@ -9,12 +10,68 @@ except ImportError:
 from textual import getters, work, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import VerticalScroll, Horizontal
-from textual.widgets import Input, Markdown, Static
+from textual.containers import VerticalScroll, Horizontal, Center
+from textual.widgets import Input, Markdown, Static, LoadingIndicator
+from textual.widget import Widget
+from textual.reactive import reactive
+
 from tui_types import KubebotSessionInfo
-from typing import Dict
+from rich_pixels import Pixels
+
+from PIL import Image
+from rich.spinner import Spinner
+
 
 import secrets
+from pathlib import Path
+
+# Get the directory of the current script
+SCRIPT_DIR = Path(__file__).parent.absolute()
+
+# Construct the full path to your image
+LOGO_PATH = SCRIPT_DIR / "kube_small.png"
+
+# class WheelSpinner(Widget):
+#     angle = reactive(0.0)
+
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
+#         try:
+#             # Load in __init__ so it is ready BEFORE the first render() call
+#             self.base_image = Image.open(LOGO_PATH).convert("RGBA")
+#             self.base_image = self.base_image.resize((32,32),resample=Image.Resampling.LANCZOS)
+#         except Exception:
+#             self.base_image = None
+
+#     def on_mount(self) -> None:
+#         # 20fps is smooth enough for TUI spinners
+#         self.set_interval(0.05, self.rotate_logo)
+
+#     def rotate_logo(self) -> None:
+#         self.angle = (self.angle + 10) % 360
+
+#     def render(self) -> Pixels | str:
+#         if self.base_image is None:
+#             return "Logo missing"
+            
+#         rotated_image = self.base_image.rotate(-self.angle, resample=Image.Resampling.NEAREST)
+#         return Pixels.from_image(rotated_image)
+
+
+from rich.spinner import Spinner
+from textual.widget import Widget
+
+class WheelSpinner(Widget):
+    def on_mount(self) -> None:
+        # Create the spinner once and store it
+        self.spinner = Spinner("dots12", style="cyan")
+        # Refresh the widget 10-20 times per second for smooth animation
+        self.set_interval(0.1, self.refresh)
+
+    def render(self) -> Spinner:
+        # Return the same spinner instance so it can advance its frames
+        return self.spinner
+
 
 
 class KubebotApp(App):
@@ -38,6 +95,7 @@ class KubebotApp(App):
     qas = getters.query_one("#qas", Markdown)
     sources = getters.query_one('#sources',Static)
     query_input = getters.query_one(Input)
+    loading_indicator = getters.query_one('#loading-wheel',WheelSpinner)
     
     #kubebot info
     current_session_details = KubebotSessionInfo(
@@ -48,9 +106,19 @@ class KubebotApp(App):
         with Horizontal():
             with VerticalScroll(id="qas-container"):
                 yield Markdown(id="qas")
+                with Center(id='loading-wheel-container'):
+                    yield WheelSpinner(id='loading-wheel')
             with VerticalScroll(id="sources-container"):
                 yield Static(id="sources")
         yield Input(placeholder="Enter query >", id="kubebot-query")
+
+    def on_mount(self) -> None:
+        self.loading_indicator.display = False
+        session_id = self.current_session_details.session_id
+        assert session_id is not None
+        self._http_client = httpx.AsyncClient(
+            cookies={'kubebot_session_id': session_id}
+        )
 
     def action_move_up(self)->None:
         self.qa_list_pos = max(0,self.qa_list_pos-1)
@@ -76,23 +144,23 @@ class KubebotApp(App):
 
     @work(exclusive=True)
     async def handle_query(self, query:str)->None:
+        self.loading_indicator.display = True
         try:
             url = f"{self.BASE_URL}/ask"
-            async with httpx.AsyncClient() as client:
-                response = (await client.post(url,timeout=30,json={
-                    'question':query,
-                    'kubebot_session_id':self.current_session_details.session_id
-                })).json()
-                if 'answer' not in response:
-                    self.qas.update(str(response))
-                else:
-                    answer = response['answer']
-                    sources = response['sources']
-                    self.add_qa(query,answer)
-                    self.add_sources(sources)
-                    self.panes_refresh()
+            response = (await self._http_client.post(url,timeout=30,json={
+                'question':query
+            })).json()
+            if 'answer' not in response:
+                self.qas.update(str(response))
+            else:
+                answer = response['answer']
+                sources = response['sources']
+                self.add_qa(query,answer)
+                self.add_sources(sources)
+                self.panes_refresh()
         except:
             self.qas.update("Sorry, had trouble getting the answer to you. Try again later.")
+        self.loading_indicator.display = False
 
     def action_get_source_info(self,doc_path):
         source_info = self.source_cache.get(doc_path)
@@ -104,7 +172,7 @@ class KubebotApp(App):
             [query,answer]
         )
         self.qa_markdown.append(
-            f'# You: {query}\n\n# KubeBot:\n```text\n{answer}\n```'
+            f'## You:\n{query}\n\n## KubeBot:\n{answer}'
         )
         self.qa_list_pos = len(self.qa_list)-1
 

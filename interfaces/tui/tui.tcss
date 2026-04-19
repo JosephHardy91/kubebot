@@ -7,6 +7,23 @@ Input#dictionary-search {
     margin: 1 0;
 }
 
+/* The container must stretch to full width to have space to "center" the child */
+#loading-wheel-container {
+    width: 100%;
+    height: auto;
+    align: center middle;
+}
+
+/* The widget must NOT be 100% width, otherwise it has no room to move */
+#loading-wheel {
+    width: auto;
+    height: auto;
+    /* This ensures the internal pixels are centered if the box is slightly larger */
+    content-align: center middle;
+    margin: 1 0;
+}
+
+
 #qas {
     width: 100%;
     height: auto;
@@ -22,7 +39,8 @@ Markdown .code_inline, MarkdownFenceCode, MarkdownFenceCode Static {
     height: 100%;
     overflow: hidden auto;
     border: tall transparent;
-    width:75%
+    width:75%;
+    align: center middle;
 }
 
 #sources {
