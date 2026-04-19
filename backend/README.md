@@ -78,11 +78,15 @@ sudo snap install glow
 │       ├── extract.py     # kubectl api-resources & explain
 │       ├── transform.py   # Chunking
 │       └── load.py        # Embedding & pgvector storage
+├── eval/                  # Retrieval evaluation harness
+│   ├── __init__.py        # Eval set (question / expected-resource pairs)
+│   └── run_eval.py        # CLI: vector-only vs vector+rerank comparison
 ├── models/                # Pydantic models
 ├── prompts/               # System prompts
 ├── services/
 │   ├── chat.py            # RAG and agent pipelines
-│   └── db.py              # Database connection & search
+│   ├── db.py              # Database connection & vector search (+rerank)
+│   └── rerank.py          # Cross-encoder reranking layer
 └── tools/
     └── search.py          # LangChain tools for agent
 ```
@@ -128,6 +132,10 @@ dagster asset materialize -m etl.definitions --select '*'
 | `DB_NAME`         | `kubebot`   | Database name                      |
 | `DAGSTER_DB_HOST` | `localhost` | DB host for Dagster (runs on host) |
 | `DAGSTER_DB_PORT` | `5433`      | DB port for Dagster (mapped port)  |
+| `RERANK_ENABLED`  | `true`      | Enable/disable cross-encoder reranking |
+| `RERANK_MODEL`    | `cross-encoder/ms-marco-MiniLM-L-6-v2` | HuggingFace cross-encoder model |
+| `RERANK_DEVICE`   | `cpu`       | Device for the cross-encoder (`cpu` or `cuda`) |
+| `RERANK_OVERFETCH_MULT` | `4`  | Over-fetch multiplier for reranking (fetch k×N from pgvector, rerank to k) |
 
 ### Rebuilding
 
@@ -142,6 +150,18 @@ After ETL changes, re-run the pipeline:
 ```bash
 dagster asset materialize -m etl.definitions --select '*'
 ```
+
+### Retrieval Evaluation
+
+Compare vector-only retrieval vs. vector + cross-encoder rerank:
+
+```bash
+cd backend
+python -m eval.run_eval          # default k=3
+python -m eval.run_eval --k 5    # custom k
+```
+
+The eval runs both retrieval modes against a curated set of Kubernetes questions, printing per-question hit/miss results and a summary with recall@k and latency deltas.
 
 ## API Endpoints
 

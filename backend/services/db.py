@@ -2,6 +2,9 @@ import os
 from models import UserQuery, Source
 from etl.resources import PostgresResource,EmbeddingsResource
 from psycopg2.extras import RealDictCursor
+from services.rerank import rerank_sources, _is_rerank_enabled
+
+RERANK_OVERFETCH_MULTIPLIER = int(os.getenv("RERANK_OVERFETCH_MULT", "4"))
 
 database = PostgresResource(
             host=os.getenv("DB_HOST", "localhost"),
@@ -20,6 +23,10 @@ def map_source(k8_doc: dict):
     )
 
 def search_db(query: UserQuery, k:int = 3)->list[Source]:
+    # When reranking is enabled, over-fetch so the cross-encoder has a
+    # wider candidate pool to reorder.
+    fetch_k = k * RERANK_OVERFETCH_MULTIPLIER if _is_rerank_enabled() else k
+
     question_embedding = embeddings.get_client().embed_query(query.question)
     db_results = []
     with database.get_connection() as conn:
@@ -29,9 +36,12 @@ def search_db(query: UserQuery, k:int = 3)->list[Source]:
             FROM k8s_docs
             ORDER BY embedding <=> %s::vector ASC
             LIMIT %s
-        ''', (question_embedding, k))
+        ''', (question_embedding, fetch_k))
 
         related_docs = cur.fetchall()
 
         db_results: list[Source] = list(map(map_source,related_docs))
+
+    # Second stage: cross-encoder rerank, then trim to the requested k
+    db_results = rerank_sources(query, db_results, top_k=k)
     return db_results
