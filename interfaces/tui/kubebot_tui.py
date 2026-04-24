@@ -1,4 +1,6 @@
 from __future__ import annotations
+import asyncio
+import json
 from typing import Dict
 
 try:
@@ -79,6 +81,8 @@ class KubebotApp(App):
 
     CSS_PATH = "tui.tcss"
     BASE_URL = 'http://localhost:8000'
+    STREAM_REVEAL_INTERVAL_SECONDS = 0.02
+    STREAM_REVEAL_CHARS_PER_TICK = 1
     BINDINGS = [
         Binding('up','move_up','Move Up'),
         Binding('down','move_down','Move Down'),
@@ -135,6 +139,34 @@ class KubebotApp(App):
         self.qas.update(self.qa_markdown[self.qa_list_pos])
         self.sources.update(self.sources_markdown[self.qa_list_pos])
 
+    def update_streamed_answer(self, query: str, answer: str) -> None:
+        self.qa_list[self.qa_list_pos][1] = answer
+        self.qa_markdown[self.qa_list_pos] = f'## You:\n{query}\n\n## KubeBot:\n{answer}'
+        self.panes_refresh()
+
+    def take_stream_reveal_chunk(self, pending_text: str) -> tuple[str, str]:
+        if len(pending_text) <= self.STREAM_REVEAL_CHARS_PER_TICK:
+            return pending_text, ''
+
+        split_at = self.STREAM_REVEAL_CHARS_PER_TICK
+        return pending_text[:split_at], pending_text[split_at:]
+
+    async def pump_streamed_markdown(
+        self,
+        markdown_stream,
+        streamed_answer_parts: list[str],
+        pending_text: list[str],
+        stream_complete: list[bool],
+    ) -> None:
+        while pending_text[0] or not stream_complete[0]:
+            if pending_text[0]:
+                next_chunk, remaining_text = self.take_stream_reveal_chunk(pending_text[0])
+                pending_text[0] = remaining_text
+                streamed_answer_parts.append(next_chunk)
+                await markdown_stream.write(next_chunk)
+
+            await asyncio.sleep(self.STREAM_REVEAL_INTERVAL_SECONDS)
+
     @on(Input.Submitted)
     async def on_input(self, event: Input.Submitted) -> None:
         """A coroutine to handle a user query."""
@@ -145,20 +177,67 @@ class KubebotApp(App):
     @work(exclusive=True)
     async def handle_query(self, query:str)->None:
         self.loading_indicator.display = True
+        self.add_qa(query, "")
+        self.add_sources([])
+        self.qas.update(f'## You:\n{query}\n\n## KubeBot:\n')
+        self.sources.update(self.sources_markdown[self.qa_list_pos])
+        markdown_stream = None
         try:
             url = f"{self.BASE_URL}/ask"
-            response = (await self._http_client.post(url,timeout=30,json={
-                'question':query
-            })).json()
-            if 'answer' not in response:
-                self.qas.update(str(response))
-            else:
-                answer = response['answer']
-                sources = response['sources']
-                self.add_qa(query,answer)
-                self.add_sources(sources)
-                self.panes_refresh()
+            streamed_answer_parts: list[str] = []
+            pending_text = ['']
+            stream_complete = [False]
+            markdown_stream = Markdown.get_stream(self.qas)
+            pump_task = asyncio.create_task(
+                self.pump_streamed_markdown(
+                    markdown_stream,
+                    streamed_answer_parts,
+                    pending_text,
+                    stream_complete,
+                )
+            )
+            async with self._http_client.stream('POST', url, timeout=30, json={
+                'question': query,
+                'streaming': True,
+            }) as response:
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+
+                    event = json.loads(line)
+                    event_type = event.get('type')
+
+                    if event_type == 'chunk':
+                        pending_text[0] += event.get('content', '')
+                        continue
+
+                    if event_type == 'final':
+                        stream_complete[0] = True
+                        await pump_task
+                        await markdown_stream.stop()
+                        answer_payload = event.get('answer', {})
+                        answer = answer_payload.get('answer', ''.join(streamed_answer_parts))
+                        sources = answer_payload.get('sources', [])
+                        self.update_streamed_answer(query, answer)
+                        self.source_list[self.qa_list_pos] = sources
+                        self.sources_markdown[self.qa_list_pos] = '\n\n'.join(
+                            '[@click=app.get_source_info("{}")]{}/[@click=]'.format(source.get('doc_path',''),source.get('doc_path',''))
+                            for source in sources
+                        )
+                        self.cache_sources(sources)
+                        self.panes_refresh()
+                        continue
+
+                    if event_type == 'error':
+                        stream_complete[0] = True
+                        await pump_task
+                        await markdown_stream.stop()
+                        error_message = event.get('content', 'Sorry, had trouble getting the answer to you. Try again later.')
+                        self.update_streamed_answer(query, error_message)
+                        break
         except:
+            if markdown_stream is not None:
+                await markdown_stream.stop()
             self.qas.update("Sorry, had trouble getting the answer to you. Try again later.")
         self.loading_indicator.display = False
 

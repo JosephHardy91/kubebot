@@ -1,8 +1,10 @@
-from typing import TYPE_CHECKING, Iterable, TypeVar, get_origin, get_args
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any, Iterable, TypeVar, get_origin, get_args
 from models import UserQuery, Source, Answer
 from langchain.messages import AIMessage, ToolMessage
 from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
+from langchain_core.runnables import RunnableConfig
 from .db import search_db, map_source
 from .memory import generate_session_id
 from prompts import make_grounding_prompt, make_agent_prompt
@@ -130,21 +132,100 @@ def extract_ai_response(response: dict) -> str | None:
     last_ai = get_last_ai_message(messages)
     return last_ai.text if last_ai else None
 
+def build_agent_input(query: UserQuery) -> dict[str, list[dict[str, str]]]:
+    user_prompt: str = make_agent_prompt(query, tools)
+    return {
+        'messages': [
+            {'role': 'user', 'content': user_prompt}
+        ]
+    }
+
+def build_agent_config(session_id: str) -> RunnableConfig:
+    return {'configurable': {'thread_id': session_id}}
+
+def extract_stream_chunk_text(stream_part: Any) -> str:
+    if stream_part.get('type') != 'messages':
+        return ''
+
+    data = stream_part.get('data')
+    if not isinstance(data, tuple) or len(data) != 2:
+        return ''
+
+    message, metadata = data
+    if not isinstance(metadata, dict):
+        return ''
+
+    if metadata.get('langgraph_node') != 'model':
+        return ''
+
+    if getattr(message, 'type', None) == 'tool':
+        return ''
+
+    if getattr(message, 'tool_calls', None):
+        return ''
+
+    content = getattr(message, 'content', None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return ''.join(
+            item.get('text', '')
+            for item in content
+            if isinstance(item, dict) and item.get('type') == 'text'
+        )
+
+    chunk_text = getattr(message, 'text', None)
+    if isinstance(chunk_text, str):
+        return chunk_text
+
+    return ''
+
+def stream_agent_pipeline(query: UserQuery, session_id: str | None) -> tuple[Iterator[str], str]:
+    if not session_id:
+        session_id = generate_session_id()
+
+    assert agent is not None, "Agents not initialized. Call init_agents() first."
+
+    config = build_agent_config(session_id)
+    inputs = build_agent_input(query)
+
+    def event_stream() -> Iterator[str]:
+        assert agent is not None, "Agents not initialized. Call init_agents() first."
+        for stream_part in agent.stream(
+            inputs,
+            config=config,
+            stream_mode='messages',
+            version='v2',
+        ):
+            chunk_text = extract_stream_chunk_text(stream_part)
+            if chunk_text:
+                yield chunk_text
+
+    return event_stream(), session_id
+
+def get_agent_answer_from_state(session_id: str) -> Answer | None:
+    assert agent is not None, "Agents not initialized. Call init_agents() first."
+
+    state = agent.get_state(build_agent_config(session_id))
+    values = state.values
+    if not isinstance(values, dict):
+        return None
+
+    answer_text = extract_ai_response(values)
+    if not answer_text:
+        return None
+
+    return Answer(answer=answer_text, sources=collect_sources(values))
+
 def run_agent_pipeline(query: UserQuery, session_id: str | None)->tuple[Answer | None, str]:
     if not session_id:
         session_id = generate_session_id()
 
     assert agent is not None, "Agents not initialized. Call init_agents() first."
-    
-    user_prompt: str = make_agent_prompt(query, tools)
 
     response = agent.invoke(
-        {'messages':
-            [
-                {'role':'user', 'content': user_prompt}
-            ]
-        },
-        config = {'configurable':{'thread_id': session_id}}
+        build_agent_input(query),
+        config=build_agent_config(session_id)
     )
     
     answer_text = extract_ai_response(response)
