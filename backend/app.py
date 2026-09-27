@@ -1,5 +1,4 @@
 import json
-from urllib.parse import quote
 
 from fastapi import FastAPI, Cookie, Response
 from fastapi.responses import StreamingResponse
@@ -10,26 +9,11 @@ from services.memory import generate_session_id, normalize_session_id
 
 
 app = FastAPI(lifespan=lifespan)
-def set_session_cookie(response: Response, session_id: str | None) -> None:
-    if not session_id:
-        return
-
-    response.set_cookie(
-        key='kubebot_session_id',
-        value=quote(session_id, safe=''),
-        httponly=True,
-        secure=True,
-        samesite='lax',
-        path='/',
-    )
-
-def make_stream_error_response(message: str, session_id: str | None = None) -> StreamingResponse:
+def make_stream_error_response(message: str) -> StreamingResponse:
     def generate_error_stream():
         yield StreamErrorEvent(content=message).model_dump_json() + '\n'
 
-    stream_response = StreamingResponse(generate_error_stream(), media_type='application/x-ndjson')
-    set_session_cookie(stream_response, normalize_session_id(session_id))
-    return stream_response
+    return StreamingResponse(generate_error_stream(), media_type='application/x-ndjson')
 
 @app.post('/ask_simple')
 async def ask_question_simple(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | None:
@@ -42,7 +26,14 @@ async def ask_question_simple(response: Response, query: UserQuery, kubebot_sess
     except Exception as e:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if new_session_id:
-        set_session_cookie(response, new_session_id)
+        response.set_cookie(
+            key='kubebot_session_id',
+            value=new_session_id,
+            httponly=True,
+            secure=True,
+            samesite='lax',
+            path='/',
+        )
     return answer
 
 @app.post('/ask', response_model=None)
@@ -72,7 +63,14 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
 
         stream_response = StreamingResponse(generate_stream(), media_type='application/x-ndjson')
         if new_session_id:
-            set_session_cookie(stream_response, new_session_id)
+            stream_response.set_cookie(
+                key='kubebot_session_id',
+                value=new_session_id,
+                httponly=True,
+                secure=True,
+                samesite='lax',
+                path='/',
+            )
         return stream_response
 
     answer: Answer | None = None
@@ -81,5 +79,12 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
     except Exception as e:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if new_session_id:
-        set_session_cookie(response, new_session_id)
+        response.set_cookie(
+            key='kubebot_session_id',
+            value=new_session_id,
+            httponly=True,
+            secure=True,
+            samesite='lax',
+            path='/',
+        )
     return answer
