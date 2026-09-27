@@ -49,7 +49,8 @@ A RAG-powered Kubernetes documentation assistant. Ask questions about Kubernetes
 Add this to your `~/.bashrc` for easy querying with markdown rendering:
 
 ```bash
-alias kubebot='f(){ curl -s -X POST localhost:8000/ask --data "{\"question\":\"$1\"}" -H "Content-Type: application/json" | jq -r ".answer" | glow; }; f'
+alias kubebot='f(){ curl -s -X POST localhost:8000/ask --data "{\"question\":\"$1\"}" -H "Content-Type: application/json" -b ~/.kubebot_cookies -c ~/.kubebot_cookies | jq -r ".answer" | glow; }; f'
+alias kubebot_clear='rm -f ~/.kubebot_cookies && echo "Session cleared"'
 ```
 
 Then use:

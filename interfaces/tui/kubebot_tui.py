@@ -24,7 +24,6 @@ from PIL import Image
 from rich.spinner import Spinner
 
 
-import secrets
 from pathlib import Path
 
 # Get the directory of the current script
@@ -103,7 +102,7 @@ class KubebotApp(App):
     
     #kubebot info
     current_session_details = KubebotSessionInfo(
-        session_id=secrets.token_urlsafe(32)
+        session_id=None
     )
 
     def compose(self) -> ComposeResult:
@@ -118,11 +117,10 @@ class KubebotApp(App):
 
     def on_mount(self) -> None:
         self.loading_indicator.display = False
-        session_id = self.current_session_details.session_id
-        assert session_id is not None
-        self._http_client = httpx.AsyncClient(
-            cookies={'kubebot_session_id': session_id}
-        )
+        self._http_client = httpx.AsyncClient()
+
+    def sync_session_cookie(self) -> None:
+        self.current_session_details.session_id = self._http_client.cookies.get('kubebot_session_id')
 
     def action_move_up(self)->None:
         self.qa_list_pos = max(0,self.qa_list_pos-1)
@@ -235,6 +233,7 @@ class KubebotApp(App):
                         error_message = event.get('content', 'Sorry, had trouble getting the answer to you. Try again later.')
                         self.update_streamed_answer(query, error_message)
                         break
+                self.sync_session_cookie()
         except:
             if markdown_stream is not None:
                 await markdown_stream.stop()

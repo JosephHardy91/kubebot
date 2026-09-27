@@ -6,7 +6,6 @@ from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
 from .db import search_db, map_source
-from .memory import generate_session_id
 from prompts import make_grounding_prompt, make_agent_prompt
 from tools import search_tools
 from ordered_set import OrderedSet
@@ -30,15 +29,12 @@ def init_agents(checkpointer):
                          tools=tools,
                          checkpointer=checkpointer)
 
-def run_chat_only_pipeline(query: UserQuery, session_id: str | None)->tuple[Answer | None, str]:
-    if not session_id:
-        session_id = generate_session_id()
-    
+def run_chat_only_pipeline(query: UserQuery, session_id: str)->Answer | None:
     assert model is not None, "Agents not initialized. Call init_agents() first."
 
     db_results: list[Source] = search_db(query)
     if not db_results:
-        return Answer(answer='Oh fuck!',sources=[]), session_id
+        return Answer(answer='Oh fuck!',sources=[])
     
     prompts: dict[str,str] = make_grounding_prompt(db_results,query)
 
@@ -51,8 +47,8 @@ def run_chat_only_pipeline(query: UserQuery, session_id: str | None)->tuple[Answ
     )
 
     if not response.text:
-        return None, session_id
-    return Answer(answer=response.text, sources=db_results), session_id
+        return None
+    return Answer(answer=response.text, sources=db_results)
 
 def ensure_type(obj, expected_type) -> bool:
     """Check if obj matches expected_type, supporting generics like list[Source]."""
@@ -180,10 +176,7 @@ def extract_stream_chunk_text(stream_part: Any) -> str:
 
     return ''
 
-def stream_agent_pipeline(query: UserQuery, session_id: str | None) -> tuple[Iterator[str], str]:
-    if not session_id:
-        session_id = generate_session_id()
-
+def stream_agent_pipeline(query: UserQuery, session_id: str) -> Iterator[str]:
     assert agent is not None, "Agents not initialized. Call init_agents() first."
 
     config = build_agent_config(session_id)
@@ -201,7 +194,7 @@ def stream_agent_pipeline(query: UserQuery, session_id: str | None) -> tuple[Ite
             if chunk_text:
                 yield chunk_text
 
-    return event_stream(), session_id
+    return event_stream()
 
 def get_agent_answer_from_state(session_id: str) -> Answer | None:
     assert agent is not None, "Agents not initialized. Call init_agents() first."
@@ -217,10 +210,7 @@ def get_agent_answer_from_state(session_id: str) -> Answer | None:
 
     return Answer(answer=answer_text, sources=collect_sources(values))
 
-def run_agent_pipeline(query: UserQuery, session_id: str | None)->tuple[Answer | None, str]:
-    if not session_id:
-        session_id = generate_session_id()
-
+def run_agent_pipeline(query: UserQuery, session_id: str)->Answer | None:
     assert agent is not None, "Agents not initialized. Call init_agents() first."
 
     response = agent.invoke(
@@ -230,6 +220,6 @@ def run_agent_pipeline(query: UserQuery, session_id: str | None)->tuple[Answer |
     
     answer_text = extract_ai_response(response)
     if not answer_text:
-        return None, session_id
+        return None
 
-    return Answer(answer=answer_text, sources=collect_sources(response)), session_id
+    return Answer(answer=answer_text, sources=collect_sources(response))
