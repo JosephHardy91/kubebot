@@ -53,7 +53,7 @@ async def ask_question_simple(response: Response, query: UserQuery, kubebot_sess
     if session_id and returned_session_id != session_id:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if new_session_id:
-        set_session_cookie(response, new_session_id)
+        set_session_cookie(response, returned_session_id)
     return answer
 
 @app.post('/ask', response_model=None)
@@ -90,7 +90,7 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
 
         stream_response = StreamingResponse(generate_stream(), media_type='application/x-ndjson')
         if new_session_id:
-            set_session_cookie(stream_response, new_session_id)
+            set_session_cookie(stream_response, returned_session_id)
         return stream_response
 
     answer: Answer | None = None
@@ -102,5 +102,5 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
     if session_id and returned_session_id != session_id:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if new_session_id:
-        set_session_cookie(response, new_session_id)
+        set_session_cookie(response, returned_session_id)
     return answer
