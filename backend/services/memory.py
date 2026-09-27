@@ -5,7 +5,8 @@ from .db import database
 import secrets
 
 SESSION_ID_BYTES = 32
-SESSION_ID_PATTERN = re.compile(rf"^[A-Za-z0-9_-]{{{len(secrets.token_urlsafe(SESSION_ID_BYTES))}}}$")
+SESSION_ID_LENGTH = (SESSION_ID_BYTES * 4 + 2) // 3
+SESSION_ID_PATTERN = re.compile(rf"^[A-Za-z0-9_-]{{{SESSION_ID_LENGTH}}}$")
 
 def generate_session_id():
     return secrets.token_urlsafe(SESSION_ID_BYTES)
