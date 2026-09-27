@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 
 from models import UserQuery, Answer, StreamChunkEvent, StreamFinalEvent, StreamErrorEvent
 from services import run_chat_only_pipeline, run_agent_pipeline, stream_agent_pipeline, get_agent_answer_from_state, lifespan
+from services.memory import generate_session_id
 
 
 app = FastAPI(lifespan=lifespan)
@@ -27,6 +28,7 @@ def set_session_cookie(response: Response, session_id: str | None) -> None:
         httponly=True,
         secure=True,
         samesite='lax',
+        path='/',
     )
 
 def make_stream_error_response(message: str, session_id: str | None = None) -> StreamingResponse:
@@ -40,30 +42,36 @@ def make_stream_error_response(message: str, session_id: str | None = None) -> S
 @app.post('/ask_simple')
 async def ask_question_simple(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | None:
     kubebot_session_id = normalize_session_id(kubebot_session_id)
+    new_session_id = generate_session_id() if not kubebot_session_id else None
+    session_id = kubebot_session_id or new_session_id
     answer: Answer | None = None
     returned_session_id:str = ''
     try:
-        answer, returned_session_id = run_chat_only_pipeline(query, kubebot_session_id)
+        answer, returned_session_id = run_chat_only_pipeline(query, session_id)
     except Exception as e:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
-    if kubebot_session_id:
-        assert returned_session_id == kubebot_session_id, "Bad session ID returned from pipeline."
-    elif (new_session_id := normalize_session_id(returned_session_id)):
+    if session_id:
+        assert returned_session_id == session_id, "Bad session ID returned from pipeline."
+    if new_session_id:
         set_session_cookie(response, new_session_id)
     return answer
 
 @app.post('/ask', response_model=None)
 async def ask_question(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | StreamingResponse | None:
     kubebot_session_id = normalize_session_id(kubebot_session_id)
+    new_session_id = generate_session_id() if not kubebot_session_id else None
+    session_id = kubebot_session_id or new_session_id
     if query.streaming:
-        returned_session_id = kubebot_session_id
+        returned_session_id = session_id
 
         try:
-            chunk_stream, returned_session_id = stream_agent_pipeline(query, kubebot_session_id)
+            chunk_stream, returned_session_id = stream_agent_pipeline(query, session_id)
+            if session_id:
+                assert returned_session_id == session_id, "Bad session ID returned from pipeline."
         except Exception:
             return make_stream_error_response(
                 'Sorry, I hit a snag and couldn\'t answer your question.',
-                returned_session_id if not kubebot_session_id else None,
+                new_session_id,
             )
 
         def generate_stream():
@@ -81,18 +89,18 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
                 yield StreamErrorEvent(content='Sorry, I hit a snag and couldn\'t answer your question.').model_dump_json() + '\n'
 
         stream_response = StreamingResponse(generate_stream(), media_type='application/x-ndjson')
-        if not kubebot_session_id and (new_session_id := normalize_session_id(returned_session_id)):
+        if new_session_id:
             set_session_cookie(stream_response, new_session_id)
         return stream_response
 
     answer: Answer | None = None
     returned_session_id:str = ''
     try:
-        answer, returned_session_id = run_agent_pipeline(query, kubebot_session_id)
+        answer, returned_session_id = run_agent_pipeline(query, session_id)
     except Exception as e:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
-    if kubebot_session_id:
-        assert returned_session_id == kubebot_session_id, "Bad session ID returned from pipeline."
-    elif (new_session_id := normalize_session_id(returned_session_id)):
+    if session_id:
+        assert returned_session_id == session_id, "Bad session ID returned from pipeline."
+    if new_session_id:
         set_session_cookie(response, new_session_id)
     return answer
