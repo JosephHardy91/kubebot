@@ -50,8 +50,8 @@ async def ask_question_simple(response: Response, query: UserQuery, kubebot_sess
         answer, returned_session_id = run_chat_only_pipeline(query, session_id)
     except Exception as e:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
-    if session_id:
-        assert returned_session_id == session_id, "Bad session ID returned from pipeline."
+    if session_id and returned_session_id != session_id:
+        return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if new_session_id:
         set_session_cookie(response, new_session_id)
     return answer
@@ -66,13 +66,13 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
 
         try:
             chunk_stream, returned_session_id = stream_agent_pipeline(query, session_id)
-            if session_id:
-                assert returned_session_id == session_id, "Bad session ID returned from pipeline."
         except Exception:
             return make_stream_error_response(
                 'Sorry, I hit a snag and couldn\'t answer your question.',
                 new_session_id,
             )
+        if session_id and returned_session_id != session_id:
+            return make_stream_error_response('Sorry, I hit a snag and couldn\'t answer your question.')
 
         def generate_stream():
             try:
@@ -99,8 +99,8 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
         answer, returned_session_id = run_agent_pipeline(query, session_id)
     except Exception as e:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
-    if session_id:
-        assert returned_session_id == session_id, "Bad session ID returned from pipeline."
+    if session_id and returned_session_id != session_id:
+        return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if new_session_id:
         set_session_cookie(response, new_session_id)
     return answer
