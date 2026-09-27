@@ -1,11 +1,19 @@
 from contextlib import contextmanager
+import re
 from langgraph.checkpoint.postgres import PostgresSaver
 from .db import database
 import secrets
 
+SESSION_ID_BYTES = 32
+SESSION_ID_PATTERN = re.compile(rf"^[A-Za-z0-9_-]{{{len(secrets.token_urlsafe(SESSION_ID_BYTES))}}}$")
 
 def generate_session_id():
-    return secrets.token_urlsafe(32)
+    return secrets.token_urlsafe(SESSION_ID_BYTES)
+
+def normalize_session_id(session_id: str | None) -> str | None:
+    if session_id and SESSION_ID_PATTERN.fullmatch(session_id):
+        return session_id
+    return None
 
 @contextmanager
 def get_checkpointer():
@@ -23,4 +31,3 @@ def get_checkpointer():
         # Setup the checkpoint tables if they don't exist
         checkpointer.setup()
         yield checkpointer
-
