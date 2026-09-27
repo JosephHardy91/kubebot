@@ -9,13 +9,16 @@ from services import run_chat_only_pipeline, run_agent_pipeline, stream_agent_pi
 
 app = FastAPI(lifespan=lifespan)
 
-def make_stream_error_response(message: str, session_id: str | None = None) -> StreamingResponse:
+def set_session_cookie(response: Response, session_id: str | None, existing_session_id: str | None) -> None:
+    if session_id and not existing_session_id:
+        response.set_cookie(key='kubebot_session_id', value=session_id)
+
+def make_stream_error_response(message: str, session_id: str | None = None, existing_session_id: str | None = None) -> StreamingResponse:
     def generate_error_stream():
         yield StreamErrorEvent(content=message).model_dump_json() + '\n'
 
     stream_response = StreamingResponse(generate_error_stream(), media_type='application/x-ndjson')
-    if session_id:
-        stream_response.set_cookie(key='kubebot_session_id', value=session_id)
+    set_session_cookie(stream_response, session_id, existing_session_id)
     return stream_response
 
 @app.post('/ask_simple')
@@ -28,7 +31,7 @@ async def ask_question_simple(response: Response, query: UserQuery, kubebot_sess
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if kubebot_session_id:
         assert returned_session_id == kubebot_session_id, "Bad session ID returned from pipeline."
-    response.set_cookie(key='kubebot_session_id',value=returned_session_id)
+    set_session_cookie(response, returned_session_id, kubebot_session_id)
     return answer
 
 @app.post('/ask', response_model=None)
@@ -39,7 +42,7 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
         try:
             chunk_stream, returned_session_id = stream_agent_pipeline(query, kubebot_session_id)
         except Exception:
-            return make_stream_error_response('Sorry, I hit a snag and couldn\'t answer your question.', returned_session_id)
+            return make_stream_error_response('Sorry, I hit a snag and couldn\'t answer your question.', returned_session_id, kubebot_session_id)
 
         def generate_stream():
             try:
@@ -56,7 +59,7 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
                 yield StreamErrorEvent(content='Sorry, I hit a snag and couldn\'t answer your question.').model_dump_json() + '\n'
 
         stream_response = StreamingResponse(generate_stream(), media_type='application/x-ndjson')
-        stream_response.set_cookie(key='kubebot_session_id', value=returned_session_id)
+        set_session_cookie(stream_response, returned_session_id, kubebot_session_id)
         return stream_response
 
     answer: Answer | None = None
@@ -67,5 +70,5 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
         return Answer(answer='Sorry, I hit a snag and couldn\'t answer your question.',sources=[])
     if kubebot_session_id:
         assert returned_session_id == kubebot_session_id, "Bad session ID returned from pipeline."
-    response.set_cookie(key='kubebot_session_id',value=returned_session_id)
+    set_session_cookie(response, returned_session_id, kubebot_session_id)
     return answer
