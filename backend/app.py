@@ -1,6 +1,6 @@
 import json
 
-from fastapi import FastAPI, Cookie, Response
+from fastapi import FastAPI, Cookie, Request, Response
 from fastapi.responses import StreamingResponse
 
 from models import UserQuery, Answer, StreamChunkEvent, StreamFinalEvent, StreamErrorEvent
@@ -10,6 +10,9 @@ from services.memory import generate_session_id, normalize_session_id
 
 app = FastAPI(lifespan=lifespan)
 
+def use_secure_cookie(request: Request) -> bool:
+    return request.url.scheme == 'https' or request.headers.get('x-forwarded-proto') == 'https'
+
 def make_stream_error_response(message: str) -> StreamingResponse:
     def generate_error_stream():
         yield StreamErrorEvent(content=message).model_dump_json() + '\n'
@@ -17,7 +20,7 @@ def make_stream_error_response(message: str) -> StreamingResponse:
     return StreamingResponse(generate_error_stream(), media_type='application/x-ndjson')
 
 @app.post('/ask_simple')
-async def ask_question_simple(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | None:
+async def ask_question_simple(request: Request, response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | None:
     client_session_id = normalize_session_id(kubebot_session_id)
     answer: Answer | None = None
 
@@ -37,14 +40,14 @@ async def ask_question_simple(response: Response, query: UserQuery, kubebot_sess
         key='kubebot_session_id',
         value=new_session_id,
         httponly=True,
-        secure=True,
+        secure=use_secure_cookie(request),
         samesite='lax',
         path='/',
     )
     return answer
 
 @app.post('/ask', response_model=None)
-async def ask_question(response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | StreamingResponse | None:
+async def ask_question(request: Request, response: Response, query: UserQuery, kubebot_session_id: str | None = Cookie(default=None))->Answer | StreamingResponse | None:
     client_session_id = normalize_session_id(kubebot_session_id)
 
     if query.streaming:
@@ -95,7 +98,7 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
             key='kubebot_session_id',
             value=new_session_id,
             httponly=True,
-            secure=True,
+            secure=use_secure_cookie(request),
             samesite='lax',
             path='/',
         )
@@ -117,7 +120,7 @@ async def ask_question(response: Response, query: UserQuery, kubebot_session_id:
         key='kubebot_session_id',
         value=new_session_id,
         httponly=True,
-        secure=True,
+        secure=use_secure_cookie(request),
         samesite='lax',
         path='/',
     )
